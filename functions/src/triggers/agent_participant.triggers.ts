@@ -11,13 +11,14 @@ import {
   getFirestoreParticipant,
   getFirestoreParticipantRef,
 } from '../utils/firestore';
-import {app} from '../app';
+import {app, FIRESTORE_DATABASE_ID} from '../app';
 
 /** If agent participant is updated, try making a single move
  * (e.g., accepting transfer or moving to next stage).
  */
 export const updateAgentParticipant = onDocumentUpdated(
   {
+    database: FIRESTORE_DATABASE_ID,
     document: 'experiments/{experimentId}/participants/{participantId}',
     memory: '1GiB',
     timeoutSeconds: 300,

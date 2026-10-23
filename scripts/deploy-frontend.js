@@ -33,14 +33,13 @@ const FRONTEND_DIR = path.join(ROOT, 'frontend');
 const INDEX_EXAMPLE = path.join(FRONTEND_DIR, 'index.example.html');
 const INDEX_HTML = path.join(FRONTEND_DIR, 'index.html');
 
+const SERVICE_NAME = process.env.CLOUD_RUN_SERVICE || 'deliberate-lab';
+const REGION = process.env.CLOUD_RUN_REGION || 'us-central1';
+
 async function main() {
-  const promote =
-    Boolean(process.env.AUTO_PROMOTE && process.env.AUTO_PROMOTE !== '');
   const {project} = await beginSurface({
-    surface: 'Frontend (App Engine)',
-    extra: promote
-      ? 'Auto-promote: traffic WILL migrate to the new version'
-      : 'Auto-promote: OFF (deploys with --no-promote)',
+    surface: `Frontend (Cloud Run + IAP: ${SERVICE_NAME} in ${REGION})`,
+    extra: 'Deploys static SPA container with Direct Cloud Run IAP (--iap)',
   });
 
   // Resolve + validate + write the authoritative web config (or reuse a matching
@@ -53,8 +52,16 @@ async function main() {
   log(`Resolved web config projectId: ${projectId} (source: ${source}).`);
 
   if (isDryRun()) {
-    log('Dry-run: verifying App Engine state instead of deploying...');
-    await run('gcloud', ['app', 'describe', '--project', project]);
+    log('Dry-run: verifying Cloud Run state instead of deploying...');
+    await run('gcloud', [
+      'run',
+      'services',
+      'list',
+      '--region',
+      REGION,
+      '--project',
+      project,
+    ]);
     log(
       colors.green(`✓ Frontend dry-run complete (config source: ${source}).`),
     );
@@ -70,20 +77,21 @@ async function main() {
   });
 
   const deployArgs = [
-    'app',
+    'beta',
+    'run',
     'deploy',
-    'app.yaml',
+    SERVICE_NAME,
+    '--source',
+    '.',
+    '--region',
+    REGION,
+    '--iap',
     '--project',
     project,
     '--quiet',
   ];
-  if (!promote) {
-    deployArgs.push('--no-promote');
-  }
   log(
-    promote
-      ? 'Deploying frontend to App Engine (auto-promote)...'
-      : 'Deploying frontend to App Engine (--no-promote)...',
+    `Deploying frontend to Cloud Run service '${SERVICE_NAME}' in ${REGION} (--iap)...`,
   );
   await run('gcloud', deployArgs, {
     cwd: FRONTEND_DIR,

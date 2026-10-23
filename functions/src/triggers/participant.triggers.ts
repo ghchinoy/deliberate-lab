@@ -34,11 +34,14 @@ import {
 } from '../chat/chat.agent';
 import {getStructuredPromptConfig} from '../structured_prompt.utils';
 
-import {app} from '../app';
+import {app, FIRESTORE_DATABASE_ID} from '../app';
 
 /** When participant is created, set participant stage answers. */
 export const onParticipantCreation = onDocumentCreated(
-  {document: 'experiments/{experimentId}/participants/{participantId}'},
+  {
+    database: FIRESTORE_DATABASE_ID,
+    document: 'experiments/{experimentId}/participants/{participantId}',
+  },
   async (event) => {
     const participant = await getFirestoreParticipant(
       event.params.experimentId,
@@ -274,6 +277,7 @@ async function advanceTurnBasedChatIfCurrentParticipantLeft(
 /** Trigger when a disconnected participant reconnects. */
 export const onParticipantReconnect = onDocumentUpdated(
   {
+    database: FIRESTORE_DATABASE_ID,
     document: 'experiments/{experimentId}/participants/{participantId}',
   },
   async (event) => {

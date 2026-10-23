@@ -1,5 +1,6 @@
 import {StageManager} from '@deliberation-lab/utils';
 import * as admin from 'firebase-admin';
+import {getFirestore} from 'firebase-admin/firestore';
 import {setGlobalOptions} from 'firebase-functions/v2';
 
 // Set global options before any function definitions.
@@ -7,6 +8,10 @@ import {setGlobalOptions} from 'firebase-functions/v2';
 // dependency modules before executing index.ts top-level code.
 // Since all endpoint files import app.ts, this runs before any onCall() calls.
 setGlobalOptions({memory: '512MiB'});
+
+export const FIRESTORE_DATABASE_ID = process.env.FIRESTORE_EMULATOR_HOST
+  ? '(default)'
+  : 'deliberate-lab';
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -16,11 +21,13 @@ setGlobalOptions({memory: '512MiB'});
 export const app = admin.initializeApp({
   databaseURL: `https://${process.env.GCLOUD_PROJECT}-default-rtdb.firebaseio.com`,
 });
+const db = getFirestore(app, FIRESTORE_DATABASE_ID);
 try {
-  app.firestore().settings({ignoreUndefinedProperties: true});
+  db.settings({ignoreUndefinedProperties: true});
 } catch (e) {
   console.warn('Firestore settings already set:', e);
 }
+app.firestore = () => db;
 
 // Stage config manager for directing stage type specific processing actions
 // (e.g., editing private/public answers, fetching prompts)

@@ -28,7 +28,7 @@ import {
 import {sendErrorPrivateChatMessage} from '../chat/chat.utils';
 import {startTimeElapsed} from '../stages/chat.time';
 import {getStructuredPromptConfig} from '../structured_prompt.utils';
-import {app} from '../app';
+import {app, FIRESTORE_DATABASE_ID} from '../app';
 
 // ************************************************************************* //
 // TRIGGER FUNCTIONS                                                         //
@@ -37,6 +37,7 @@ import {app} from '../app';
 /** When a chat message is created under publicStageData */
 export const onPublicChatMessageCreated = onDocumentCreated(
   {
+    database: FIRESTORE_DATABASE_ID,
     document:
       'experiments/{experimentId}/cohorts/{cohortId}/publicStageData/{stageId}/chats/{chatId}',
     memory: '1GiB',
@@ -593,6 +594,7 @@ export const onPublicChatMessageCreated = onDocumentCreated(
 /** When a chat message is created under private participant stageData */
 export const onPrivateChatMessageCreated = onDocumentCreated(
   {
+    database: FIRESTORE_DATABASE_ID,
     document:
       'experiments/{experimentId}/participants/{participantId}/stageData/{stageId}/privateChats/{chatId}',
     memory: '1GiB',

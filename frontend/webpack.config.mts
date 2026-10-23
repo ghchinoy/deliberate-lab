@@ -15,7 +15,7 @@
  */
 
 import CopyWebpackPlugin from 'copy-webpack-plugin';
-import {Configuration} from 'webpack';
+import type {Configuration} from 'webpack';
 import {GitRevisionPlugin} from 'git-revision-webpack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import {CleanWebpackPlugin} from 'clean-webpack-plugin';

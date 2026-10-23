@@ -40,7 +40,7 @@
     "deploy:rules:firestore": "node scripts/deploy-firestore-rules.js",
     "deploy:rules:storage": "node scripts/deploy-storage-rules.js",
     "deploy:rules:database": "node scripts/deploy-database-rules.js",
-    "deploy:rules": "npm run deploy:rules:firestore && npm run deploy:rules:storage && npm run deploy:rules:database",
+    "deploy:rules": "npm run deploy:rules:firestore && npm run deploy:rules:database",
     "deploy:indexes": "node scripts/deploy-indexes.js",
     "deploy:functions": "node scripts/deploy-functions.js",
     "deploy:frontend": "node scripts/deploy-frontend.js",

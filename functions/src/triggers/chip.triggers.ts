@@ -6,7 +6,7 @@ import {
   createChipTransactionLogEntry,
 } from '@deliberation-lab/utils';
 
-import {app} from '../app';
+import {app, FIRESTORE_DATABASE_ID} from '../app';
 import {updateParticipantChipQuantities} from '../stages/chip.utils';
 
 /**
@@ -15,6 +15,7 @@ import {updateParticipantChipQuantities} from '../stages/chip.utils';
  */
 export const completeChipTransaction = onDocumentCreated(
   {
+    database: FIRESTORE_DATABASE_ID,
     document:
       'experiments/{experimentId}/cohorts/{cohortId}/publicStageData/{stageId}/transactions/{transactionId}',
   },

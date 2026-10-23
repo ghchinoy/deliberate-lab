@@ -3,6 +3,7 @@ import {
   onDocumentWritten,
 } from 'firebase-functions/v2/firestore';
 import {StageKind, StageParticipantAnswer} from '@deliberation-lab/utils';
+import {FIRESTORE_DATABASE_ID} from '../app';
 import {
   getFirestoreParticipant,
   getFirestoreStage,
@@ -21,6 +22,7 @@ import {updateParticipantReadyToEndChat} from '../chat/chat.utils';
 /** When participant (private) stage data is updated. */
 export const onParticipantStageDataUpdated = onDocumentWritten(
   {
+    database: FIRESTORE_DATABASE_ID,
     document:
       'experiments/{experimentId}/participants/{participantId}/stageData/{stageId}',
     memory: '1GiB',
@@ -105,6 +107,7 @@ export const onParticipantStageDataUpdated = onDocumentWritten(
 /** When public stage data is updated. */
 export const onPublicStageDataUpdated = onDocumentUpdated(
   {
+    database: FIRESTORE_DATABASE_ID,
     document:
       'experiments/{experimentId}/cohorts/{cohortId}/publicStageData/{stageId}/',
     memory: '1GiB',

@@ -39,6 +39,8 @@ import {FIREBASE_CONFIG} from '../../firebase_config';
 
 import {Service} from './service';
 
+export const FIRESTORE_DATABASE_ID = 'deliberate-lab';
+
 /** Manages Firebase connection, experiments subscription. */
 export class FirebaseService extends Service {
   constructor() {
@@ -46,7 +48,10 @@ export class FirebaseService extends Service {
     makeObservable(this);
 
     this.app = initializeApp(FIREBASE_CONFIG);
-    this.firestore = getFirestore(this.app);
+    this.firestore =
+      process.env.NODE_ENV === 'development'
+        ? getFirestore(this.app)
+        : getFirestore(this.app, FIRESTORE_DATABASE_ID);
     this.auth = getAuth(this.app);
     this.functions = getFunctions(this.app);
     this.storage = getStorage(this.app);

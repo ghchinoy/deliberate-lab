@@ -17,6 +17,9 @@ package-lock.json
 package.json
 tsconfig.json
 webpack.config.js
+webpack.config.mts
+app.yaml
+assets/
 node_modules/
 src/
 

@@ -138,18 +138,37 @@ function validateConfig(config, project, sourceLabel) {
 
 /** Auto-fetch the web SDK config from the target project. */
 function autoFetchConfig(project) {
+  let appId = process.env.FIREBASE_APP_ID ? process.env.FIREBASE_APP_ID.trim() : '';
+  if (!appId) {
+    const listOut = execSync(
+      `npx --no-install firebase apps:list WEB --project ${project} --json`,
+      {cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe']},
+    );
+    const listParsed = JSON.parse(listOut);
+    const apps = listParsed.result || [];
+    const match =
+      apps.find((a) => a.displayName === 'deliberate-lab') ||
+      (apps.length === 1 ? apps[0] : null);
+    if (match && match.appId) {
+      appId = match.appId;
+    }
+  }
+  const appIdArg = appId ? ` ${appId}` : '';
   const out = execSync(
-    `npx --no-install firebase apps:sdkconfig WEB --project ${project} --json`,
+    `npx --no-install firebase apps:sdkconfig WEB${appIdArg} --project ${project} --json`,
     {cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe']},
   );
   const parsed = JSON.parse(out);
   // Firebase CLI --json shape: { status, result: { sdkConfig: {...} } }
-  return (
+  const sdkConfig =
     (parsed.result && parsed.result.sdkConfig) ||
     parsed.sdkConfig ||
     parsed.result ||
-    parsed
-  );
+    parsed;
+  if (sdkConfig && typeof sdkConfig === 'object' && !sdkConfig.measurementId) {
+    sdkConfig.measurementId = 'G-PLACEHOLDER';
+  }
+  return sdkConfig;
 }
 
 /** Produce the authoritative, validated config from file or auto-fetch. */
