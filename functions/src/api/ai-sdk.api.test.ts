@@ -250,6 +250,21 @@ describe('buildGoogleOptions', () => {
       thinkingBudget: 500,
     });
   });
+
+  it('auto-enables includeThoughts for gemini-4 models and avoids thinkingBudget', () => {
+    const config = createModelGenerationConfig({
+      reasoningBudget: 500,
+      includeReasoning: true,
+    });
+    const options = buildGoogleOptions(config, 'gemini-4-argon') as Record<
+      string,
+      unknown
+    >;
+    expect(options.thinkingConfig).toEqual({
+      includeThoughts: true,
+      thinkingLevel: 'low',
+    });
+  });
 });
 
 describe('buildAnthropicOptions', () => {
@@ -276,6 +291,17 @@ describe('buildAnthropicOptions', () => {
     const config = createModelGenerationConfig({reasoningBudget: 2000});
     const options = buildAnthropicOptions(config) as Record<string, unknown>;
     expect(options.thinking).toEqual({type: 'enabled', budgetTokens: 2000});
+  });
+
+  it('uses adaptive thinking and default medium effort for Claude 5.5 models', () => {
+    const config = createModelGenerationConfig({includeReasoning: true});
+    const options = buildAnthropicOptions(
+      config,
+      'claude-sonnet-5-5',
+    ) as Record<string, unknown>;
+    expect(options.thinking).toEqual({type: 'adaptive'});
+    expect(options.effort).toBe('medium');
+    expect(options.sendReasoning).toBe(true);
   });
 });
 
@@ -441,6 +467,24 @@ describe('shouldUseNativeStructuredOutput', () => {
     };
     expect(shouldUseNativeStructuredOutput(config)).toBe(true);
   });
+
+  it('returns false for Claude and Vertex MaaS models even when JSON_SCHEMA is set', () => {
+    const config: StructuredOutputConfig = {
+      enabled: true,
+      type: StructuredOutputType.JSON_SCHEMA,
+      appendToPrompt: true,
+      schema: {type: StructuredOutputDataType.OBJECT},
+    };
+    expect(shouldUseNativeStructuredOutput(config, 'claude-sonnet-5-5')).toBe(
+      false,
+    );
+    expect(
+      shouldUseNativeStructuredOutput(config, 'openai/gpt-oss-120b-maas'),
+    ).toBe(false);
+    expect(shouldUseNativeStructuredOutput(config, 'gemini-3.8-flash')).toBe(
+      true,
+    );
+  });
 });
 
 // ============================================================================
@@ -567,6 +611,27 @@ describe('mapResultToModelResponse', () => {
     const response = mapResultToModelResponse(result, config);
     expect(response.parsedResponse).toEqual({name: 'Test', value: 42});
     expect(response.text).toBe('{"name":"Test","value":42}');
+  });
+
+  it('parses structured output from text when Output.object() was not used', () => {
+    const result = createMockResult({
+      text: '```json\n{"shouldRespond":true,"response":"Hello","explanation":"Greeting","readyToEndChat":false}\n```',
+      output: undefined,
+      finishReason: 'stop',
+    });
+    const config: StructuredOutputConfig = {
+      enabled: true,
+      type: StructuredOutputType.JSON_SCHEMA,
+      appendToPrompt: true,
+      schema: {type: StructuredOutputDataType.OBJECT},
+    };
+    const response = mapResultToModelResponse(result, config);
+    expect(response.parsedResponse).toEqual({
+      shouldRespond: true,
+      response: 'Hello',
+      explanation: 'Greeting',
+      readyToEndChat: false,
+    });
   });
 
   it('handles reasoning text', () => {

@@ -124,49 +124,19 @@ export function checkApiKeyExists(
   if (experimenterData === null || experimenterData === undefined) {
     return false;
   }
-  // if active API key type is Gemini
-  if (apiKeyType === ApiKeyType.GEMINI_API_KEY) {
-    // implicitly checks if geminiApiKey exists
-    return experimenterData.apiKeys.geminiApiKey !== INVALID_API_KEY;
+  // Google Cloud Vertex AI (Application Default Credentials) is enabled by default
+  // for Vertex AI, Gemini, Claude (Vertex Model Garden), and OpenAI (Vertex MaaS).
+  if (
+    apiKeyType === ApiKeyType.VERTEX_AI_API_KEY ||
+    apiKeyType === ApiKeyType.GEMINI_API_KEY ||
+    apiKeyType === ApiKeyType.CLAUDE_API_KEY ||
+    apiKeyType === ApiKeyType.OPENAI_API_KEY
+  ) {
+    return true;
   }
 
-  if (apiKeyType === ApiKeyType.VERTEX_AI_API_KEY) {
-    const config = experimenterData.apiKeys.vertexAIConfig;
-    if (!config) return false;
-    // Valid if express mode API key is set, or service account JSON is set
-    const hasApiKey = !!config.apiKey && config.apiKey !== INVALID_API_KEY;
-    const hasServiceAccount =
-      !!config.serviceAccountJson &&
-      config.serviceAccountJson !== INVALID_API_KEY;
-    return hasApiKey || hasServiceAccount;
-  }
-
-  if (apiKeyType === ApiKeyType.OPENAI_API_KEY) {
-    if (!experimenterData.apiKeys.openAIApiKey) {
-      return false;
-    }
-    // A custom server could require no API key, and the default OpenAI server
-    // requires no base URL setting, but leaving both blank is invalid.
-    return (
-      experimenterData.apiKeys.openAIApiKey.apiKey !== INVALID_API_KEY ||
-      experimenterData.apiKeys.openAIApiKey.baseUrl !== EMPTY_BASE_URL
-    );
-  }
-  if (apiKeyType === ApiKeyType.CLAUDE_API_KEY) {
-    if (!experimenterData.apiKeys.claudeApiKey) {
-      return false;
-    }
-    // A custom server could require no API key, and the default OpenAI server
-    // requires no base URL setting, but leaving both blank is invalid.
-    return (
-      experimenterData.apiKeys.claudeApiKey.apiKey !== INVALID_API_KEY ||
-      experimenterData.apiKeys.claudeApiKey.baseUrl !== EMPTY_BASE_URL
-    );
-  }
-
-  // if active API key type is Ollama
+  // if active API key type is Ollama, require an explicit server URL
   if (apiKeyType === ApiKeyType.OLLAMA_CUSTOM_URL) {
-    // implicitly checks if llamaApiKey exists
     return experimenterData.apiKeys.ollamaApiKey.url !== INVALID_API_KEY;
   }
 

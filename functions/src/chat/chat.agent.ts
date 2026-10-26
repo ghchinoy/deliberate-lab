@@ -15,6 +15,7 @@ import {
   UserType,
   awaitTypingDelay,
   createChatMessage,
+  createExperimenterData,
   createParticipantProfileBase,
   createSystemChatMessage,
   sanitizeRawResponseForLogging,
@@ -310,12 +311,10 @@ export async function getAgentChatMessage(
 }> {
   const stageId = stage.id;
 
-  // Fetch experiment creator's API key.
+  // Fetch experiment creator's API key (or default to empty config for Vertex AI ADC).
   const experimenterData =
-    await getExperimenterDataFromExperiment(experimentId);
-  if (!experimenterData) {
-    return {message: null, success: false, retryTimedOut: false};
-  }
+    (await getExperimenterDataFromExperiment(experimentId)) ??
+    createExperimenterData('default', 'default');
 
   // Get chat messages from private/public data based on stage kind
   const chatMessages =

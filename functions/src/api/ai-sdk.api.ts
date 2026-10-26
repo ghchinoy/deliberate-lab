@@ -19,6 +19,8 @@ import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
 import {createGoogleGenerativeAI} from '@ai-sdk/google';
 import {createVertex} from '@ai-sdk/google-vertex';
+import {createVertexAnthropic} from '@ai-sdk/google-vertex/anthropic';
+import {createVertexMaas} from '@ai-sdk/google-vertex/maas';
 import {createOllama} from 'ollama-ai-provider-v2';
 
 // Re-export ModelMessage for use throughout functions package
@@ -35,12 +37,43 @@ import {
   ApiKeyType,
   VertexAIConfig,
   isAlwaysThinkingModel,
+  makeStructuredOutputPrompt,
+  parseStructuredOutputFromText,
   schemaToObject,
 } from '@deliberation-lab/utils';
 
 // ============================================================================
 // PROVIDER REGISTRY
 // ============================================================================
+
+const DEFAULT_VERTEX_PROJECT =
+  process.env.GCLOUD_PROJECT ||
+  process.env.GOOGLE_CLOUD_PROJECT ||
+  'ghchinoy-genai-sa';
+const DEFAULT_VERTEX_LOCATION = 'global';
+
+/**
+ * Returns true if the model ID is an Anthropic Claude model.
+ */
+function isClaudeModel(modelName?: string): boolean {
+  return Boolean(modelName && modelName.startsWith('claude-'));
+}
+
+/**
+ * Returns true if the model is a Claude 5 / 5.5 model that requires adaptive thinking.
+ */
+function isAdaptiveThinkingClaudeModel(modelName?: string): boolean {
+  return Boolean(modelName && /claude-.*-5(\b|-)/.test(modelName));
+}
+
+/**
+ * Returns true if the model ID targets a Vertex AI MaaS OpenAI-compatible endpoint.
+ */
+function isVertexMaasModel(modelName?: string): boolean {
+  return Boolean(
+    modelName && (modelName.includes('/') || modelName.endsWith('-maas')),
+  );
+}
 
 /**
  * Provider factory creates a language model instance from configuration.
@@ -51,58 +84,101 @@ type ProviderFactory = (
 ) => (modelId: string) => LanguageModel;
 
 /**
- * Registry of available AI providers.
- * Adding a new provider requires:
- * 1. npm install @ai-sdk/[provider]
- * 2. Add one line to this registry
+ * Resolves project, location, and optional explicit service account credentials
+ * for Vertex AI providers, defaulting to Application Default Credentials (ADC).
  */
+function resolveVertexAuthOptions(config?: VertexAIConfig) {
+  const serviceAccount = config?.serviceAccountJson
+    ? JSON.parse(config.serviceAccountJson)
+    : undefined;
+  const project =
+    config?.project || serviceAccount?.project_id || DEFAULT_VERTEX_PROJECT;
+  const location = config?.location || DEFAULT_VERTEX_LOCATION;
+  const hasExplicitCredentials = Boolean(
+    serviceAccount?.client_email && serviceAccount?.private_key,
+  );
+
+  return {
+    project,
+    location,
+    ...(hasExplicitCredentials
+      ? {
+          googleAuthOptions: {
+            credentials: {
+              client_email: serviceAccount.client_email,
+              private_key: serviceAccount.private_key,
+            },
+          },
+        }
+      : {}),
+  };
+}
+
 /**
  * Creates a Vertex AI model factory.
- * Supports express mode (API key) and service account auth.
+ * Supports ADC by default, express mode (API key), and explicit service account JSON,
+ * and dispatches Gemini, Anthropic Model Garden, and OpenAI MaaS models automatically.
  */
 function getVertexModelFactory(
   config?: VertexAIConfig,
 ): (modelId: string) => LanguageModel {
-  if (config?.apiKey) {
-    const provider = createVertex({apiKey: config.apiKey});
-    return (modelId: string) => provider(modelId) as LanguageModel;
-  }
-  // Parse service account JSON to extract credentials
-  const serviceAccount = config?.serviceAccountJson
-    ? JSON.parse(config.serviceAccountJson)
-    : {};
-  const provider = createVertex({
-    project: config?.project || serviceAccount.project_id,
-    location: config?.location,
-    googleAuthOptions: {
-      credentials: {
-        client_email: serviceAccount.client_email,
-        private_key: serviceAccount.private_key,
-      },
-    },
-  });
-  return (modelId: string) => provider(modelId) as LanguageModel;
+  const authOptions = resolveVertexAuthOptions(config);
+  return (modelId: string) => {
+    if (isClaudeModel(modelId)) {
+      const anthropicProvider = createVertexAnthropic(authOptions);
+      return anthropicProvider(modelId) as LanguageModel;
+    }
+    if (isVertexMaasModel(modelId)) {
+      const maasProvider = createVertexMaas(authOptions);
+      return maasProvider(modelId) as LanguageModel;
+    }
+    if (config?.apiKey) {
+      const expressProvider = createVertex({apiKey: config.apiKey});
+      return expressProvider(modelId) as LanguageModel;
+    }
+    const vertexProvider = createVertex(authOptions);
+    return vertexProvider(modelId) as LanguageModel;
+  };
 }
 
 const PROVIDER_REGISTRY: Record<string, ProviderFactory> = {
   google: (config) => {
-    const provider = createGoogleGenerativeAI({apiKey: config.geminiApiKey});
-    return (modelId: string) => provider(modelId) as LanguageModel;
+    if (config.geminiApiKey) {
+      const provider = createGoogleGenerativeAI({apiKey: config.geminiApiKey});
+      return (modelId: string) => provider(modelId) as LanguageModel;
+    }
+    // Fall back to Vertex AI ADC when no Gemini AI Studio API key is configured
+    return getVertexModelFactory(config.vertexAIConfig);
   },
   vertex: (config) => getVertexModelFactory(config.vertexAIConfig),
   openai: (config) => {
-    const provider = createOpenAI({
-      apiKey: config.openAIApiKey?.apiKey,
-      baseURL: config.openAIApiKey?.baseUrl || undefined,
-    });
-    return (modelId: string) => provider(modelId) as LanguageModel;
+    const hasCustomOpenAI = Boolean(
+      config.openAIApiKey?.apiKey || config.openAIApiKey?.baseUrl,
+    );
+    return (modelId: string) => {
+      if (!hasCustomOpenAI || isVertexMaasModel(modelId)) {
+        return getVertexModelFactory(config.vertexAIConfig)(modelId);
+      }
+      const provider = createOpenAI({
+        apiKey: config.openAIApiKey?.apiKey,
+        baseURL: config.openAIApiKey?.baseUrl || undefined,
+      });
+      return provider(modelId) as LanguageModel;
+    };
   },
   anthropic: (config) => {
-    const provider = createAnthropic({
-      apiKey: config.claudeApiKey?.apiKey,
-      baseURL: config.claudeApiKey?.baseUrl || undefined,
-    });
-    return (modelId: string) => provider(modelId) as LanguageModel;
+    const hasCustomClaude = Boolean(
+      config.claudeApiKey?.apiKey || config.claudeApiKey?.baseUrl,
+    );
+    if (hasCustomClaude) {
+      const provider = createAnthropic({
+        apiKey: config.claudeApiKey?.apiKey,
+        baseURL: config.claudeApiKey?.baseUrl || undefined,
+      });
+      return (modelId: string) => provider(modelId) as LanguageModel;
+    }
+    // Fall back to Vertex AI Anthropic Model Garden (ADC) when no external key is set
+    return getVertexModelFactory(config.vertexAIConfig);
   },
   ollama: (config) => {
     const provider = createOllama({
@@ -275,14 +351,19 @@ function buildGoogleOptions(
   const wantsThinking =
     config.includeReasoning === true || hasValidBudget || hasReasoningLevel;
 
+  const isGemini4 = Boolean(modelName && modelName.includes('gemini-4'));
+
   if (wantsThinking) {
     // Default to including thoughts if thinking is configured, unless explicitly disabled
     const includeThoughts = config.includeReasoning !== false;
     const thinkingConfig: Record<string, unknown> = {
       includeThoughts,
     };
-    if (hasValidBudget) {
+    if (hasValidBudget && !isGemini4) {
       thinkingConfig.thinkingBudget = config.reasoningBudget;
+    } else if (hasValidBudget && isGemini4 && !hasReasoningLevel) {
+      // Gemini 4 models reject thinkingBudget and require thinkingLevel
+      thinkingConfig.thinkingLevel = 'low';
     }
     if (hasReasoningLevel) {
       // Map our reasoningLevel to Google's thinkingLevel
@@ -291,7 +372,7 @@ function buildGoogleOptions(
     options.thinkingConfig = thinkingConfig;
   }
 
-  // Auto-enable includeThoughts for always-thinking models (e.g., Gemini 3)
+  // Auto-enable includeThoughts for always-thinking models (e.g., Gemini 3 & Gemini 4)
   // This ensures we get the thought text in the response
   if (isAlwaysThinkingModel(modelName) && !options.thinkingConfig) {
     options.thinkingConfig = {
@@ -305,7 +386,10 @@ function buildGoogleOptions(
 /**
  * Builds Anthropic/Claude provider options from universal fields.
  */
-function buildAnthropicOptions(config: ModelGenerationConfig): object {
+function buildAnthropicOptions(
+  config: ModelGenerationConfig,
+  modelName?: string,
+): object {
   const options: Record<string, unknown> = {};
 
   // Map reasoningLevel to effort
@@ -323,10 +407,20 @@ function buildAnthropicOptions(config: ModelGenerationConfig): object {
     (config.reasoningLevel && config.reasoningLevel !== 'off');
 
   if (wantsThinking) {
-    options.thinking = {
-      type: 'enabled' as const,
-      ...(hasValidBudget && {budgetTokens: config.reasoningBudget}),
-    };
+    if (isAdaptiveThinkingClaudeModel(modelName)) {
+      // Claude 5 / 5.5 models require adaptive thinking + effort instead of type: 'enabled'
+      options.thinking = {
+        type: 'adaptive' as const,
+      };
+      if (!options.effort) {
+        options.effort = 'medium';
+      }
+    } else {
+      options.thinking = {
+        type: 'enabled' as const,
+        ...(hasValidBudget && {budgetTokens: config.reasoningBudget}),
+      };
+    }
     // Default to sending reasoning if thinking is configured, unless explicitly disabled
     if (config.includeReasoning !== false) {
       options.sendReasoning = true;
@@ -362,17 +456,56 @@ function getProviderOptions(
 ): object {
   const overrides = generationConfig.providerOptions;
 
-  switch (apiType) {
+  // When using VERTEX_AI with a partner model (Claude or OpenAI MaaS),
+  // build options for the underlying partner model family.
+  const effectiveApiType =
+    apiType === ApiKeyType.VERTEX_AI_API_KEY && isClaudeModel(modelName)
+      ? ApiKeyType.CLAUDE_API_KEY
+      : apiType === ApiKeyType.VERTEX_AI_API_KEY && isVertexMaasModel(modelName)
+        ? ApiKeyType.OPENAI_API_KEY
+        : apiType;
+
+  switch (effectiveApiType) {
     case ApiKeyType.GEMINI_API_KEY:
     case ApiKeyType.VERTEX_AI_API_KEY: {
       const mapped = buildGoogleOptions(generationConfig, modelName);
-      const merged = {...mapped, ...overrides?.google};
+      const merged = {...mapped, ...overrides?.google} as Record<
+        string,
+        unknown
+      >;
+      // Sanitize thinkingBudget for Gemini 4 models (which only accept thinkingLevel)
+      if (
+        modelName?.includes('gemini-4') &&
+        merged.thinkingConfig &&
+        typeof merged.thinkingConfig === 'object'
+      ) {
+        const tc = {...(merged.thinkingConfig as Record<string, unknown>)};
+        if ('thinkingBudget' in tc) {
+          const budget = tc.thinkingBudget;
+          delete tc.thinkingBudget;
+          if (budget === 0 && !tc.thinkingLevel) {
+            tc.thinkingLevel = 'minimal';
+          }
+        }
+        merged.thinkingConfig = tc;
+      }
       return {google: merged};
     }
 
     case ApiKeyType.CLAUDE_API_KEY: {
-      const mapped = buildAnthropicOptions(generationConfig);
-      const merged = {...mapped, ...overrides?.anthropic};
+      const mapped = buildAnthropicOptions(generationConfig, modelName);
+      const merged = {...mapped, ...overrides?.anthropic} as Record<
+        string,
+        unknown
+      >;
+      if (
+        isAdaptiveThinkingClaudeModel(modelName) &&
+        merged.thinking &&
+        typeof merged.thinking === 'object' &&
+        (merged.thinking as {type?: string}).type === 'disabled'
+      ) {
+        delete merged.thinking;
+      }
       return Object.keys(merged).length > 0 ? {anthropic: merged} : {};
     }
 
@@ -500,11 +633,17 @@ function mapGenerationConfig(config: ModelGenerationConfig): object {
 //         └─ Refusal: finishReason → mapFinishReason()
 /**
  * Checks if structured output should use native JSON schema mode.
+ * Vertex partner models (Claude and MaaS) do not support Output.object() due to
+ * forced tool_choice / Org Policy constraints and instead use prompt-based JSON parsing.
  */
 function shouldUseNativeStructuredOutput(
   config?: StructuredOutputConfig,
+  modelName?: string,
 ): boolean {
   if (!config?.enabled || !config.schema) {
+    return false;
+  }
+  if (isClaudeModel(modelName) || isVertexMaasModel(modelName)) {
     return false;
   }
   return config.type === StructuredOutputType.JSON_SCHEMA;
@@ -616,8 +755,8 @@ function mapResultToModelResponse(
     response.text = result.text;
   }
 
-  // Handle structured output - only if result.output is an actual parsed object
-  // (not a string, which can happen when Output.object() wasn't used)
+  // Handle structured output - prefer native result.output (from Output.object()),
+  // and fall back to parsing JSON from response.text when prompt-based JSON mode was used.
   if (
     structuredOutputConfig?.enabled &&
     result.output &&
@@ -626,6 +765,11 @@ function mapResultToModelResponse(
   ) {
     response.parsedResponse = result.output as object;
     response.text = JSON.stringify(result.output);
+  } else if (structuredOutputConfig?.enabled && result.text) {
+    const parsedFromText = parseStructuredOutputFromText(result.text);
+    if (parsedFromText && typeof parsedFromText === 'object') {
+      response.parsedResponse = parsedFromText;
+    }
   }
 
   // Handle reasoning/thinking
@@ -932,14 +1076,29 @@ export async function generateAIResponse(
     }
 
     // Add structured output if enabled
-    if (
-      shouldUseNativeStructuredOutput(structuredOutputConfig) &&
-      structuredOutputConfig?.schema
-    ) {
+    const useNativeSchema = shouldUseNativeStructuredOutput(
+      structuredOutputConfig,
+      modelSettings.modelName,
+    );
+    if (useNativeSchema && structuredOutputConfig?.schema) {
       const jsonSchemaObj = schemaToObject(structuredOutputConfig.schema);
       generateOptions.output = Output.object({
         schema: jsonSchema(jsonSchemaObj),
       });
+    } else if (
+      structuredOutputConfig?.enabled &&
+      structuredOutputConfig?.schema &&
+      !structuredOutputConfig.appendToPrompt
+    ) {
+      // Ensure prompt-based JSON models still receive the schema instructions
+      // even if appendToPrompt was set to false on the config
+      const schemaPrompt = makeStructuredOutputPrompt({
+        ...structuredOutputConfig,
+        appendToPrompt: true,
+      });
+      generateOptions.system = generateOptions.system
+        ? `${generateOptions.system}\n\n${schemaPrompt}`
+        : schemaPrompt;
     }
 
     // Make the API call

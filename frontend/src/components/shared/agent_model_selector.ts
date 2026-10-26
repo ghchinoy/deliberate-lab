@@ -7,6 +7,7 @@ import {customElement, property} from 'lit/decorators.js';
 import {
   ApiKeyType,
   ExperimenterData,
+  MODEL_OPTIONS,
   checkApiKeyExists,
   getDefaultModelForApiType,
 } from '@deliberation-lab/utils';
@@ -18,7 +19,7 @@ import {styles} from './agent_model_selector.scss';
 export class AgentModelSelector extends LitElement {
   static override styles: CSSResultGroup = [styles];
 
-  @property() apiType: ApiKeyType = ApiKeyType.GEMINI_API_KEY;
+  @property() apiType: ApiKeyType = ApiKeyType.VERTEX_AI_API_KEY;
   @property() modelName: string = '';
   @property({type: Boolean}) disabled = false;
   @property({type: Object}) experimenterData:
@@ -45,15 +46,18 @@ export class AgentModelSelector extends LitElement {
       <div>
         <div class="field-title">LLM API</div>
         <div class="api-type-buttons">
-          ${this.renderApiTypeButton('Gemini', ApiKeyType.GEMINI_API_KEY)}
-          ${this.renderApiTypeButton('Vertex AI', ApiKeyType.VERTEX_AI_API_KEY)}
           ${this.renderApiTypeButton(
-            'OpenAI or compatible API',
-            ApiKeyType.OPENAI_API_KEY,
+            'Vertex AI (Default)',
+            ApiKeyType.VERTEX_AI_API_KEY,
           )}
+          ${this.renderApiTypeButton('Gemini', ApiKeyType.GEMINI_API_KEY)}
           ${this.renderApiTypeButton(
             'Claude or compatible API',
             ApiKeyType.CLAUDE_API_KEY,
+          )}
+          ${this.renderApiTypeButton(
+            'OpenAI or compatible API',
+            ApiKeyType.OPENAI_API_KEY,
           )}
           ${this.renderApiTypeButton(
             'Ollama Server',
@@ -94,7 +98,32 @@ export class AgentModelSelector extends LitElement {
   }
 
   private renderModel() {
+    const presets = MODEL_OPTIONS[this.apiType] ?? [];
     return html`
+      ${presets.length > 0
+        ? html`
+            <div>
+              <div class="field-title">Suggested Models</div>
+              <div class="api-type-buttons">
+                ${presets.map((option) => {
+                  const isSelected = this.modelName === option.id;
+                  return html`
+                    <pr-button
+                      color="${isSelected ? 'primary' : 'neutral'}"
+                      variant=${isSelected ? 'tonal' : 'default'}
+                      ?disabled=${this.disabled}
+                      @click=${() => {
+                        this.emitChange(this.apiType, option.id);
+                      }}
+                    >
+                      ${option.displayName}
+                    </pr-button>
+                  `;
+                })}
+              </div>
+            </div>
+          `
+        : ''}
       <md-filled-text-field
         label="Model ID"
         .value=${this.modelName}

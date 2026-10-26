@@ -6,10 +6,10 @@
 import {ApiKeyType} from './providers';
 
 // Default model names for each provider
-export const GEMINI_DEFAULT_MODEL = 'gemini-3-flash-preview';
-export const VERTEX_AI_DEFAULT_MODEL = 'gemini-3-flash-preview';
-export const OPENAI_DEFAULT_MODEL = 'gpt-5-mini-2025-08-07';
-export const CLAUDE_DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+export const GEMINI_DEFAULT_MODEL = 'gemini-3.8-flash';
+export const VERTEX_AI_DEFAULT_MODEL = 'gemini-3.8-flash';
+export const OPENAI_DEFAULT_MODEL = 'openai/gpt-oss-120b-maas';
+export const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-5-5';
 export const OLLAMA_DEFAULT_MODEL = 'ministral-3';
 
 /**
@@ -26,29 +26,74 @@ export interface ModelOption {
  */
 export const GEMINI_MODELS: ModelOption[] = [
   {
+    id: 'gemini-3.8-flash',
+    displayName: 'Gemini 3.8 Flash',
+    apiType: ApiKeyType.GEMINI_API_KEY,
+  },
+  {
+    id: 'gemini-4-argon',
+    displayName: 'Gemini 4 Argon',
+    apiType: ApiKeyType.GEMINI_API_KEY,
+  },
+  {
+    id: 'gemini-3.1-pro-preview',
+    displayName: 'Gemini 3.1 Pro Preview',
+    apiType: ApiKeyType.GEMINI_API_KEY,
+  },
+  {
     id: 'gemini-3-flash-preview',
     displayName: 'Gemini 3 Flash Preview',
     apiType: ApiKeyType.GEMINI_API_KEY,
   },
   {
-    id: 'gemini-3-pro-preview',
-    displayName: 'Gemini 3 Pro Preview',
+    id: 'gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
+    apiType: ApiKeyType.GEMINI_API_KEY,
+  },
+  {
+    id: 'gemini-2.5-pro',
+    displayName: 'Gemini 2.5 Pro',
     apiType: ApiKeyType.GEMINI_API_KEY,
   },
 ];
 
 /**
- * Suggested Vertex AI models.
+ * Suggested Vertex AI models (Gemini, Anthropic Model Garden, OpenAI MaaS).
  */
 export const VERTEX_AI_MODELS: ModelOption[] = [
   {
-    id: 'gemini-3-flash-preview',
-    displayName: 'Gemini 3 Flash Preview',
+    id: 'gemini-3.8-flash',
+    displayName: 'Gemini 3.8 Flash',
     apiType: ApiKeyType.VERTEX_AI_API_KEY,
   },
   {
-    id: 'gemini-3-pro-preview',
-    displayName: 'Gemini 3 Pro Preview',
+    id: 'gemini-4-argon',
+    displayName: 'Gemini 4 Argon',
+    apiType: ApiKeyType.VERTEX_AI_API_KEY,
+  },
+  {
+    id: 'claude-sonnet-5-5',
+    displayName: 'Claude Sonnet 5.5',
+    apiType: ApiKeyType.VERTEX_AI_API_KEY,
+  },
+  {
+    id: 'claude-opus-5-5',
+    displayName: 'Claude Opus 5.5',
+    apiType: ApiKeyType.VERTEX_AI_API_KEY,
+  },
+  {
+    id: 'openai/gpt-oss-120b-maas',
+    displayName: 'GPT-OSS 120B (MaaS)',
+    apiType: ApiKeyType.VERTEX_AI_API_KEY,
+  },
+  {
+    id: 'gemini-3.1-pro-preview',
+    displayName: 'Gemini 3.1 Pro Preview',
+    apiType: ApiKeyType.VERTEX_AI_API_KEY,
+  },
+  {
+    id: 'gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
     apiType: ApiKeyType.VERTEX_AI_API_KEY,
   },
 ];
@@ -57,6 +102,11 @@ export const VERTEX_AI_MODELS: ModelOption[] = [
  * Suggested OpenAI models.
  */
 export const OPENAI_MODELS: ModelOption[] = [
+  {
+    id: 'openai/gpt-oss-120b-maas',
+    displayName: 'GPT-OSS 120B (Vertex MaaS)',
+    apiType: ApiKeyType.OPENAI_API_KEY,
+  },
   {
     id: 'gpt-5-mini',
     displayName: 'GPT-5 mini',
@@ -69,8 +119,23 @@ export const OPENAI_MODELS: ModelOption[] = [
  */
 export const CLAUDE_MODELS: ModelOption[] = [
   {
-    id: 'claude-haiku-4-5-20251001',
-    displayName: 'Claude Haiku 4.5',
+    id: 'claude-sonnet-5-5',
+    displayName: 'Claude Sonnet 5.5',
+    apiType: ApiKeyType.CLAUDE_API_KEY,
+  },
+  {
+    id: 'claude-opus-5-5',
+    displayName: 'Claude Opus 5.5',
+    apiType: ApiKeyType.CLAUDE_API_KEY,
+  },
+  {
+    id: 'claude-sonnet-5',
+    displayName: 'Claude Sonnet 5',
+    apiType: ApiKeyType.CLAUDE_API_KEY,
+  },
+  {
+    id: 'claude-sonnet-4-6',
+    displayName: 'Claude Sonnet 4.6',
     apiType: ApiKeyType.CLAUDE_API_KEY,
   },
 ];

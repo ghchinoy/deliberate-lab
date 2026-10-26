@@ -23,10 +23,19 @@ describe('checkApiKeyExists', () => {
     );
   });
 
-  test('returns false if active API key type is Gemini and geminiApiKey is invalid', () => {
+  test('returns true for GCP Vertex AI backed providers even without explicit API key', () => {
     experimenterData.apiKeys.geminiApiKey = '';
+    expect(
+      checkApiKeyExists(ApiKeyType.VERTEX_AI_API_KEY, experimenterData),
+    ).toBe(true);
     expect(checkApiKeyExists(ApiKeyType.GEMINI_API_KEY, experimenterData)).toBe(
-      false,
+      true,
+    );
+    expect(checkApiKeyExists(ApiKeyType.CLAUDE_API_KEY, experimenterData)).toBe(
+      true,
+    );
+    expect(checkApiKeyExists(ApiKeyType.OPENAI_API_KEY, experimenterData)).toBe(
+      true,
     );
   });
 

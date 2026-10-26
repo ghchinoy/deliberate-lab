@@ -13,6 +13,7 @@ import {
   SurveyStageParticipantAnswer,
   StageParticipantAnswer,
   SurveyAnswer,
+  createExperimenterData,
   getVisibleSurveyQuestions,
 } from '@deliberation-lab/utils';
 import {processModelResponse} from './agent.utils';
@@ -97,9 +98,11 @@ export async function completeStageAsAgentParticipant(
   }
   // NOTE: Attention checks are handled in agent participant trigger
 
-  // Fetch experiment creator's API key.
+  // Fetch experiment creator's API key (or default to empty config for Vertex AI ADC).
   const creatorId = experiment.metadata.creator;
-  const experimenterData = await getExperimenterData(creatorId);
+  const experimenterData =
+    (await getExperimenterData(creatorId)) ??
+    createExperimenterData(creatorId, creatorId);
 
   // Call stage manager to perform stage-specific actions
   const stageActions = stageManager.getAgentParticipantActionsForStage(

@@ -142,7 +142,7 @@ export interface AgentParticipantTemplate {
 // ************************************************************************* //
 // CONSTANTS                                                                 //
 // ************************************************************************* //
-export const DEFAULT_AGENT_API_TYPE = ApiKeyType.GEMINI_API_KEY;
+export const DEFAULT_AGENT_API_TYPE = ApiKeyType.VERTEX_AI_API_KEY;
 
 export const DEFAULT_AGENT_API_MODEL = getDefaultModelForApiType(
   DEFAULT_AGENT_API_TYPE,

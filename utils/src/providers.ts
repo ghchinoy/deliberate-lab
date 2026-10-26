@@ -113,8 +113,8 @@ export interface ProviderOptionsMap {
  */
 export function isAlwaysThinkingModel(modelName?: string): boolean {
   if (!modelName) return false;
-  // Gemini 3 models do not have a non-thinking mode.
-  return modelName.includes('gemini-3');
+  // Gemini 3 and Gemini 4 models do not have a non-thinking mode.
+  return modelName.includes('gemini-3') || modelName.includes('gemini-4');
 }
 
 /**

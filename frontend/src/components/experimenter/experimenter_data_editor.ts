@@ -67,15 +67,18 @@ export class ExperimenterDataEditor extends MobxLitElement {
 
     return html`
       <div class="banner">
-        Note: API keys are shared across all of your experiments!
+        Google Cloud Vertex AI (Application Default Credentials) is enabled by
+        default for Vertex AI, Gemini, Claude (Model Garden), and OpenAI (MaaS).
+        Configuring API keys below is optional and only needed to override the
+        default project credentials.
       </div>
-      ${this.renderGeminiKey()}
-      <div class="divider"></div>
       ${this.renderVertexAISettings()}
       <div class="divider"></div>
-      ${this.renderOpenAISettings()}
+      ${this.renderGeminiKey()}
       <div class="divider"></div>
       ${this.renderClaudeSettings()}
+      <div class="divider"></div>
+      ${this.renderOpenAISettings()}
       <div class="divider"></div>
       ${this.renderOllamaSettings()}
     `;
@@ -191,9 +194,11 @@ export class ExperimenterDataEditor extends MobxLitElement {
     const config = data?.apiKeys.vertexAIConfig;
     return html`
       <div class="section">
-        <h3>Vertex AI API settings</h3>
+        <h3>Vertex AI API settings (Default Provider)</h3>
         <p>
-          Use either an API key (express mode) or service account credentials.
+          Uses the project's Application Default Credentials (location: global)
+          by default. Optionally supply an Express Mode API key or custom
+          service account below to override.
         </p>
         <md-filled-text-field
           label="API key (express mode)"

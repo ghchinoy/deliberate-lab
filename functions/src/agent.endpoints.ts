@@ -6,6 +6,7 @@ import {
   buildMergePersonaPrompt,
   buildEnhancePersonaPrompt,
   createAgentModelSettings,
+  createExperimenterData,
   createModelGenerationConfig,
 } from '@deliberation-lab/utils';
 import {getAgentResponse} from './agent.utils';
@@ -30,14 +31,10 @@ export const testAgentConfig = onCall(
     // Only allow experimenters to use this test endpoint
     await AuthGuard.isExperimenter(request);
 
-    // Fetch experiment creator's API key and other experiment data
-    const experimenterData = await getExperimenterData(creatorId);
-    if (!experimenterData) {
-      return {
-        status: ModelResponseStatus.INTERNAL_ERROR,
-        errorMessage: 'Experimenter data not found',
-      };
-    }
+    // Fetch experiment creator's API key and other experiment data (or default to ADC)
+    const experimenterData =
+      (await getExperimenterData(creatorId)) ??
+      createExperimenterData(creatorId, creatorId);
 
     const modelSettings = createAgentModelSettings({apiType});
     const prompt = 'Say "hello world" and tell a unique joke.';
@@ -89,14 +86,10 @@ export const generatePersonaContext = onCall(
       };
     }
 
-    // Fetch experimenter's API keys
-    const experimenterData = await getExperimenterData(creatorId);
-    if (!experimenterData) {
-      return {
-        status: ModelResponseStatus.INTERNAL_ERROR,
-        errorMessage: 'Experimenter data not found',
-      };
-    }
+    // Fetch experimenter's API keys (or default to ADC)
+    const experimenterData =
+      (await getExperimenterData(creatorId)) ??
+      createExperimenterData(creatorId, creatorId);
 
     // Build prompt based on mode
     let prompt = '';
